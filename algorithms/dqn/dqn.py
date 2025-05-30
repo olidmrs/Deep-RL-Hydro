@@ -21,14 +21,19 @@ class DQN(nn.Module):
     def create_layers(self) -> None:
         """
         Creates hidden layers with dimensions specified in parameters of class
-        """        
+        """
+        '''
+        input,hidden
+        hidden,hidden
+        hidden,output
+        '''
         last_dim = self.input_dim
-        for _ in range(self.nb_hidden):
-            self.layers.append(nn.Linear(last_dim, self.hidden_size))
-        last_dim = self.hidden_size
-
-        # Output layer
-        self.layers.append(nn.Linear(last_dim, self.output_dim))
+        for layer in range(self.nb_hidden + 1):
+            if layer == self.nb_hidden:
+                self.layers.append(nn.Linear(last_dim, self.output_dim))        
+            else:
+                self.layers.append(nn.Linear(last_dim, self.hidden_size))
+            last_dim = self.hidden_size
 
 
     def forward(self, state : tuple[int, int, int]) -> torch.Tensor:
