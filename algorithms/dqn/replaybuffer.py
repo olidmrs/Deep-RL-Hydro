@@ -1,7 +1,7 @@
 import numpy as np
 from collections import deque
 import random
-
+random.seed(42)
 class ReplayBuffer():
 
     def __init__(self, size : int) -> None:

@@ -2,6 +2,7 @@ import numpy as np
 from environment.hydroenv import HydroEnv
 import pickle
 import os
+import random
 
 class Qlearning():
 
@@ -9,7 +10,7 @@ class Qlearning():
             self,
             env : HydroEnv,
             gamma : float,
-            epoch : int,
+            episodes : int,
             learning_rate : float,
             epsilon : float,
             epsilon_decay : float,
@@ -20,7 +21,7 @@ class Qlearning():
         Args:
             env (HydroEnv): Hydro system environment
             gamma (float): Discount parameter between 0 and 1
-            epoch (int): Number of training episodes
+            episodes (int): Number of training episodes
             learning_rate (float): Learning rate by which the Q value is modified
             epsilon (float): Base epsilon to determine exploration vs exploitation of agent
             epsilon_decay (float): Decay rate between 0 and 1 of epsilon 
@@ -28,103 +29,94 @@ class Qlearning():
         """        
         self.env = env
         self.gamma = gamma
-        self.epoch = epoch
+        self.episodes = episodes
         self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.min_epsilon = min_epsilon
-        self.Q_table = np.zeros((self.env.t, (self.env.l_max + 1) * 2, (self.env.l_max + 1) * 2))
+        self.episode_hit_min_eps = 0
+
+        # Q_table is of dimensions [t, s, I, a]
+        self.Q_table = np.zeros((self.env.t + 1, self.env.l_max + 1, self.env.l_max + 1, self.env.action_space.n * 2 + 1))
+        self.visit_counts = np.zeros((self.env.t + 1, self.env.l_max + 1, self.env.l_max + 1, self.env.action_space.n * 2 + 1))
     
     def qlearning_solver(self) -> None:
 
         """
-        Algorithm iterates through each epoch by starting at a random state at time period 0. It then propagates
+        Algorithm iterates through each episode by starting at a random state at time period 0. It then propagates
         through each period of our system taking an action at each period. The action is chosen with an 
         epsilon-greedy exploration vs exploitation method.
         """       
 
         count_exploration = 0
+        count_exploitation = 0
 
-        for ep in range(self.epoch):
+        for ep in range(self.episodes):
             if ep % 100000 == 0:
-                print(f'ep: {ep}')
+                print(f'ep: {ep} %: {ep/self.episodes * 100} %')
+                print(f'epsilon: {self.epsilon}')
+                
 
-            initial_s = np.random.randint(self.env.l_min, self.env.l_max + 1)
-            waterinflows = self.env.waterinflows
+            self.env.reset()
 
             for t in range(self.env.t):
-                s = initial_s
+                s = self.env.state[0]
+                waterinflow = self.env.state[1]
 
                 # Determination of action space with consideration of hydro system constraints
-                possible_actions = [a for a in self.env.get_actions(s, waterinflows[t])]
+                possible_actions = [a for a in self.env.get_actions()]
                 
                 # Exploration
                 if np.random.rand() <= self.epsilon:
                     count_exploration += 1
-                    a = self.draw_random_action(possible_actions)
-                    next_s = s + waterinflows[t] - a
+                    a = random.choice(possible_actions)
+                    next_state, reward, done, truncated, info = self.env.step(a)
                 
                 # Exploitation
                 else:
-                    a = possible_actions[np.argmax(self.Q_table[t, s, possible_actions])]
-                    next_s = s + waterinflows[t] - a 
+                    count_exploitation += 1
+                    a = possible_actions[np.argmax(self.Q_table[t, s, waterinflow, possible_actions])]
+                    next_state, reward, done, truncated, info = self.env.step(a)
                 
                 # TD_error determination for final stage
-                if t == self.env.t - 1:
-                    TD_error = self.env.reward(t, s, a) 
+                if done:
+                    TD_error = reward
 
                 # TD_error determination for non-final stage
                 else:
-                    # print(f'min-max possible action: {min(possible_actions)} - {max(possible_actions)}')
-                    # print(f'time: {t}, s: {s}, i: {waterinflows[t]}, a: {a}')
-                    # print(f'next state: {next_s}')
-                    # print(f'Q_table size: {self.Q_table.shape}')
-                    TD_error = self.env.reward(t, s, a) + self.gamma * max(self.Q_table[t + 1, next_s, :]) - self.Q_table[t, s, a]
+                    TD_error = reward + self.gamma * np.max(self.Q_table[t + 1, next_state[0], waterinflow, :]) - self.Q_table[t, s, waterinflow, a]
                 
                 # Q table update
-                self.Q_table[t, s, a] = self.Q_table[t, s, a] + self.learning_rate * TD_error
-                    
-                initial_s = next_s
+                self.Q_table[t, s, waterinflow, a] = self.Q_table[t, s, waterinflow, a] + self.learning_rate * TD_error
+                self.visit_counts[t, s, waterinflow, a] = 1
             
             # Decay of epsilon for exploration
             self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
-        print(f'Exploration rate: {round(100 * count_exploration/self.epoch, 1)} %')
-    
-    @staticmethod
-    def draw_random_action(possible_actions : list) -> int:
-        """
-        Draws a random action from our action space
+        print(f'\n Exploration rate: {round(100 * count_exploration/(count_exploitation + count_exploration), 1)} %')
+        print(f'Exploitation rate: {round(100 * count_exploitation/(count_exploitation + count_exploration), 1)} %')
 
-        Args:
-            possible_actions (list): action space with consideration of hydro system constraints
-
-        Returns:
-            Action (int): action
-        """        
-        try:
-            draw = np.random.randint(0, len(possible_actions))
-            return possible_actions[draw]
-        except:
-            return 0
-
-    def extract_policy(self) -> tuple[list, list]:
+    def extract_policy(self, initial_waterlevel : int) -> tuple[list, list]:
         """
         Extracts optimal policy propagating through our system starting at initial state 
 
         Returns:
             pi (list): optimal actions to take at each time step starting at initial state
             waterlevel (list): waterlevel at each period when stating at initial state and following optimal policy
-        """        
-        l = self.env.l_initial 
+        """
+        self.env.inflow_cache = []
+        l = initial_waterlevel
         pi = []
         waterlevel = [l]
         for t in range(self.env.t):
-            a = np.argmax(self.Q_table[t, l, :])
+            self.env.get_inflow(t)
+            a = np.argmax(self.Q_table[t, l, self.env.inflow_cache[t], :])
             pi.append(a)
-            l = l + self.env.waterinflows[t] - a
+            l = l + self.env.inflow_cache[t] - a
             waterlevel.append(l)
-        return pi, waterlevel
+        waterinflows = self.env.inflow_cache
+        self.env.inflow_cache = []
+        return pi, waterlevel, waterinflows
     
     def save_model(self, filename : str) -> None:
         """
@@ -152,15 +144,15 @@ class Qlearning():
         with open(filepath, 'rb') as f:
             return pickle.load(f)
         
-    def extract_value_of_pi(self) -> float:
-        """
-        Extracts the value of starting at l0 and following pi
-
-        Args:
-            q_table (np.ndarray): Value table
-
-        Returns:
-            float: Value of starting at l0 and following pi
-        """        
-        return max(self.Q_table[0, self.env.l_initial, : ])
+    def extract_reward_of_pi(self, waterlevel : list, pi: list) -> float:
+        reward = 0
+        for t in range(self.env.t):
+            reward += self.env.get_current_reward(t, waterlevel[t], pi[t])[0]
+        return reward
+    
+    def compute_non_visited_count(self, waterlevel, waterinflow, pi) -> int:
+        for t in range(self.env.t):
+            if self.visit_counts[t, waterlevel[t], waterinflow[t], pi[t]] == 0.0:
+                return 1
+        return 0
     

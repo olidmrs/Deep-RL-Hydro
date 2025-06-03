@@ -7,7 +7,7 @@ from . import ReplayBuffer
 from . import DQN
 from environment import HydroEnv
 import random
-
+random.seed(42)
 class DQNAgent():
     def __init__(
             self,
@@ -67,20 +67,23 @@ class DQNAgent():
         Returns:
             int: Action chosen
         """        
+        min_valid_action_space = max(0, self.env.state[0] + self.env.state[1] - self.env.l_max)
+        max_valid_action_space = min(self.env.state[0] + self.env.state[1], self.env.l_max) + 1
         # Exploitation
         if np.random.random() > self.eps:
             self.exploitation_episodes += 1
             state = torch.FloatTensor(state).unsqueeze(0)
             # Q_value is a tensor representing the value of each possible action 
             q_value = self.dqn.forward(state)
+            q_value = q_value[0, min_valid_action_space : max_valid_action_space]
             # Action will be the index of the maximal q value
+            # print(f'min: {min_valid_action_space}, max: {max_valid_action_space}')
             action = q_value.argmax().item()
 
         # Exploration
         else:
             self.exploration_episodes += 1
-            valid_action_space = min(self.env.state[0] + self.env.state[1], self.env.l_max)
-            action = random.randrange(valid_action_space)
+            action = random.randrange(max_valid_action_space)
         return action
     
     def update(self, batch_size : int) -> None:
