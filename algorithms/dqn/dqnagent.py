@@ -7,7 +7,11 @@ from . import ReplayBuffer
 from . import DQN
 from environment import HydroEnv
 import random
-random.seed(42)
+
+random.seed(1)
+np.random.seed(1)
+torch.manual_seed(1)
+
 class DQNAgent():
     def __init__(
             self,

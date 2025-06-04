@@ -1,5 +1,9 @@
 import torch
 import torch.nn as nn
+import random
+import numpy
+random.seed(1)
+torch.manual_seed(1)
 
 class DQN(nn.Module):
     def __init__(
@@ -52,6 +56,9 @@ class DQN(nn.Module):
             else:
                 state = layer(state)
         return state
+    
+    def act(self, q_values : torch.Tensor):
+        return q_values.argmax().item()
         
     
     

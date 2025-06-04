@@ -39,6 +39,7 @@ class Qlearning():
         # Q_table is of dimensions [t, s, I, a]
         self.Q_table = np.zeros((self.env.t + 1, self.env.l_max + 1, self.env.l_max + 1, self.env.action_space.n * 2 + 1))
         self.visit_counts = np.zeros((self.env.t + 1, self.env.l_max + 1, self.env.l_max + 1, self.env.action_space.n * 2 + 1))
+        self.epsilon_history = []
     
     def qlearning_solver(self) -> None:
 
@@ -50,15 +51,17 @@ class Qlearning():
 
         count_exploration = 0
         count_exploitation = 0
-
+        epsilon_history = []
+        reward_history = []
         for ep in range(self.episodes):
-            if ep % 100000 == 0:
+            epsilon_history.append(self.epsilon)
+            if ep % 10000 == 0:
                 print(f'ep: {ep} %: {ep/self.episodes * 100} %')
                 print(f'epsilon: {self.epsilon}')
+        
                 
-
             self.env.reset()
-
+            episode_reward = 0
             for t in range(self.env.t):
                 s = self.env.state[0]
                 waterinflow = self.env.state[1]
@@ -71,6 +74,7 @@ class Qlearning():
                     count_exploration += 1
                     a = random.choice(possible_actions)
                     next_state, reward, done, truncated, info = self.env.step(a)
+                    
                 
                 # Exploitation
                 else:
@@ -78,6 +82,7 @@ class Qlearning():
                     a = possible_actions[np.argmax(self.Q_table[t, s, waterinflow, possible_actions])]
                     next_state, reward, done, truncated, info = self.env.step(a)
                 
+                episode_reward += reward
                 # TD_error determination for final stage
                 if done:
                     TD_error = reward
@@ -92,9 +97,12 @@ class Qlearning():
             
             # Decay of epsilon for exploration
             self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
-
+            reward_history.append(episode_reward)
+            
         print(f'\n Exploration rate: {round(100 * count_exploration/(count_exploitation + count_exploration), 1)} %')
         print(f'Exploitation rate: {round(100 * count_exploitation/(count_exploitation + count_exploration), 1)} %')
+        
+        return epsilon_history, reward_history
 
     def extract_policy(self, initial_waterlevel : int) -> tuple[list, list]:
         """
