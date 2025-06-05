@@ -33,6 +33,7 @@ class HydroEnv(gym.Env):
             l_max : int,
             l_min : int,
             punition : int,
+            deterministic_inflows : list
             ) -> None:
         """
         Initialize observation space and action space
@@ -48,6 +49,7 @@ class HydroEnv(gym.Env):
         self.l_max = l_max
         self.l_min = l_min
         self.punition = punition
+        self.deterministic_inflows = deterministic_inflows
         self.observation_space = gym.spaces.MultiDiscrete(np.array([l_max, l_max, t]))
         self.action_space = gym.spaces.Discrete(l_max + 1)
         self.state = 0
@@ -139,4 +141,9 @@ class HydroEnv(gym.Env):
 
         a_min = max(waterlevel + inflow - self.l_max, 0)
         a_max = waterlevel + inflow - self.l_min
+        return range(a_min, a_max + 1)
+    
+    def get_deterministic_actions(self, waterlevel : int, deterministic_inflow : int):
+        a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
+        a_max = waterlevel + deterministic_inflow - self.l_min
         return range(a_min, a_max + 1)
