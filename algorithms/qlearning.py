@@ -12,6 +12,7 @@ class Qlearning():
             gamma : float,
             episodes : int,
             learning_rate : float,
+            learning_rate_decay: float,
             epsilon : float,
             epsilon_decay : float,
             min_epsilon : float = 0.1
@@ -31,6 +32,7 @@ class Qlearning():
         self.gamma = gamma
         self.episodes = episodes
         self.learning_rate = learning_rate
+        self.learning_rate_decay = learning_rate_decay
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.min_epsilon = min_epsilon
@@ -58,6 +60,7 @@ class Qlearning():
             if ep % 10000 == 0:
                 print(f'ep: {ep} %: {ep/self.episodes * 100} %')
                 print(f'epsilon: {self.epsilon}')
+                print(f'learning rate: {self.learning_rate} ')
         
                 
             self.env.reset()
@@ -68,35 +71,40 @@ class Qlearning():
 
                 # Determination of action space with consideration of hydro system constraints
                 possible_actions = [a for a in self.env.get_actions()]
-                
+
                 # Exploration
                 if np.random.rand() <= self.epsilon:
                     count_exploration += 1
                     a = random.choice(possible_actions)
                     next_state, reward, done, truncated, info = self.env.step(a)
-                    
                 
                 # Exploitation
                 else:
                     count_exploitation += 1
-                    a = possible_actions[np.argmax(self.Q_table[t, s, waterinflow, possible_actions])]
+                    qvals = [self.Q_table[t, s, waterinflow, a] for a in possible_actions]
+                    a = possible_actions[np.argmax(qvals)]
+                    # a = possible_actions[np.argmax(self.Q_table[t, s, waterinflow, possible_actions])]
                     next_state, reward, done, truncated, info = self.env.step(a)
                 
                 episode_reward += reward
-                # TD_error determination for final stage
-                if done:
-                    TD_error = reward
 
                 # TD_error determination for non-final stage
-                else:
-                    TD_error = reward + self.gamma * np.max(self.Q_table[t + 1, next_state[0], waterinflow, :]) - self.Q_table[t, s, waterinflow, a]
+                TD_error = reward + self.gamma * np.max(self.Q_table[t + 1, next_state[0], next_state[1], :]) - self.Q_table[t, s, waterinflow, a]
                 
                 # Q table update
                 self.Q_table[t, s, waterinflow, a] = self.Q_table[t, s, waterinflow, a] + self.learning_rate * TD_error
+
+                # Terminal Q value based on water level
+                # if done:
+                #     terminal_reward, _ = self.env.get_current_reward(t + 1, next_state[0], 0)
+                #     self.Q_table[t + 1, next_state[0], next_state[1], a] = self.Q_table[t + 1, next_state[0], next_state[1], a] + self.learning_rate * (terminal_reward - self.Q_table[t + 1, next_state[0], next_state[1], a])
+                #     episode_reward += terminal_reward
+                
                 self.visit_counts[t, s, waterinflow, a] = 1
             
             # Decay of epsilon for exploration
             self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+            self.learning_rate = max(0.5, self.learning_rate * self.learning_rate_decay)
             reward_history.append(episode_reward)
             
         print(f'\n Exploration rate: {round(100 * count_exploration/(count_exploitation + count_exploration), 1)} %')
@@ -104,7 +112,7 @@ class Qlearning():
         
         return epsilon_history, reward_history
 
-    def extract_policy(self, initial_waterlevel : int) -> tuple[list, list]:
+    def extract_policy(self, initial_waterlevel : int, deterministic_inflows : list = []) -> tuple[list, list]:
         """
         Extracts optimal policy propagating through our system starting at initial state 
 
@@ -112,19 +120,42 @@ class Qlearning():
             pi (list): optimal actions to take at each time step starting at initial state
             waterlevel (list): waterlevel at each period when stating at initial state and following optimal policy
         """
-        self.env.inflow_cache = []
+        inflows = []
         l = initial_waterlevel
         pi = []
         waterlevel = [l]
-        for t in range(self.env.t):
-            self.env.get_inflow(t)
-            a = np.argmax(self.Q_table[t, l, self.env.inflow_cache[t], :])
-            pi.append(a)
-            l = l + self.env.inflow_cache[t] - a
-            waterlevel.append(l)
-        waterinflows = self.env.inflow_cache
-        self.env.inflow_cache = []
-        return pi, waterlevel, waterinflows
+        total_reward = 0
+        for t in range(self.env.t + 1):
+
+            if len(deterministic_inflows) == 0:
+                if t != self.env.t:
+                    inflows.append(self.env.get_inflow(t))
+                    print(t)
+                    print(l)
+                    a = np.argmax(self.Q_table[t, l, self.env.inflow_cache[t], :])
+                    pi.append(a)
+                    reward, _ = self.env.get_current_reward(t, l, a)
+                    l = l + self.env.inflow_cache[t] - a
+                    total_reward += reward
+                    waterlevel.append(l)
+                else: 
+                    reward, _ = self.env.get_current_reward(t,l,0)
+                    total_reward += reward
+
+            else:
+                if t != self.env.t:
+                    inflows = deterministic_inflows
+                    a = np.argmax(self.Q_table[t, l, inflows[t], :])
+                    pi.append(a)
+                    reward, _ = self.env.get_current_reward(t, l, a)
+                    l = l + inflows[t] - a
+                    total_reward += reward
+                    waterlevel.append(l)
+                else:
+                    reward, _ = self.env.get_current_reward(t,l,0)
+                    total_reward += reward
+        self.env.reset()
+        return pi, waterlevel, inflows, total_reward
     
     def save_model(self, filename : str) -> None:
         """
@@ -163,4 +194,3 @@ class Qlearning():
             if self.visit_counts[t, waterlevel[t], waterinflow[t], pi[t]] == 0.0:
                 return 1
         return 0
-    

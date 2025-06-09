@@ -33,7 +33,7 @@ class HydroEnv(gym.Env):
             l_max : int,
             l_min : int,
             punition : int,
-            deterministic_inflows : list
+            deterministic_inflows : list = []
             ) -> None:
         """
         Initialize observation space and action space
@@ -50,7 +50,7 @@ class HydroEnv(gym.Env):
         self.l_min = l_min
         self.punition = punition
         self.deterministic_inflows = deterministic_inflows
-        self.observation_space = gym.spaces.MultiDiscrete(np.array([l_max, l_max, t]))
+        self.observation_space = gym.spaces.MultiDiscrete(np.array([l_max + 1, l_max + 1, t + 1]))
         self.action_space = gym.spaces.Discrete(l_max + 1)
         self.state = 0
         self.last_i = 0
@@ -69,15 +69,17 @@ class HydroEnv(gym.Env):
             the transition, a bool of if the step led to termination, a bool of if the step led to truncation,
             and an information dictionnary (not implemented here).
         """        
+        reward, truncated = self.get_current_reward(self.current_t, self.state[0], action)
         inflow = self.state[1]
         next_waterlevel = self.state[0] + inflow - action
-        reward, truncated = self.get_current_reward(self.current_t, next_waterlevel, action)
 
         # Updates
         self.last_i = inflow
         done = 0
         
-        if self.current_t == self.t and truncated != 1:
+        if self.current_t == self.t - 1 and truncated != 1:
+            terminal_reward, _ = self.get_current_reward(self.current_t + 1, next_waterlevel, 0)
+            reward += terminal_reward
             done = 1
 
         self.current_t += 1
@@ -92,6 +94,7 @@ class HydroEnv(gym.Env):
         self.current_t = 0
         self.inflow_cache = []
         self.state = (np.random.randint(0, self.l_max), self.get_inflow(self.current_t), self.current_t)
+        print(self.state)
 
     def get_current_reward(self, t : int, next_waterlevel : int, action : int) -> tuple[float, int]:
         """

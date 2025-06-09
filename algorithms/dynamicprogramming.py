@@ -14,9 +14,9 @@ class DynamicProgramming():
             Value table (np.ndarray): table of value of starting in each state at each time
             Policy table (np.ndarray): table of best action to take in each state at each time
         """
-
-        v = np.zeros([self.env.t + 1, self.env.l_max + 1 + max(self.env.deterministic_inflows)])
-        pi = np.zeros([self.env.t + 1, self.env.l_max + 1 + max(self.env.deterministic_inflows)])
+        # max(self.env.deterministic_inflows)
+        v = np.zeros([self.env.t + 1, self.env.l_max + 1])
+        pi = np.zeros([self.env.t + 1, self.env.l_max + 1])
         
 
         for t in range(self.env.t, -1, -1):
@@ -31,7 +31,7 @@ class DynamicProgramming():
                     actions = []
                     for a in self.env.get_deterministic_actions(l, self.env.deterministic_inflows[t]):
                         next_l = l + self.env.deterministic_inflows[t] - a
-                        reward, _ = self.env.get_current_reward(t, next_l, a)
+                        reward, _ = self.env.get_current_reward(t, l, a)
                         Q_table.append(reward + v[t + 1, next_l])
                         actions.append(a)
                         # if self.env.l_min <= next_l  <= self.env.l_max:
@@ -57,23 +57,20 @@ class DynamicProgramming():
         l = waterlevel_t0
         optimal_pi = []
         waterlevel = [l]
+        total_reward = 0
+        for t in range(self.env.t + 1):
+            if t != self.env.t:
+                print(t)
+                action = int(pi[t, l])
+                optimal_pi.append(action)
+                reward, _ = self.env.get_current_reward(t, l, action)
+                l = l + self.env.deterministic_inflows[t] - action
+                total_reward += reward
+                print(reward)
+                waterlevel.append(l)
+            else:
+                reward, _ = self.env.get_current_reward(t,l,0)
+                total_reward += reward
+        return optimal_pi, waterlevel, total_reward
 
-        for t in range(self.env.t):
-            action = int(pi[t, l])
-            optimal_pi.append(action)
-            l = l + self.env.deterministic_inflows[t] - action
-            waterlevel.append(l)
-        return optimal_pi, waterlevel
-    
-    def extract_value(self, v : np.ndarray) -> float:
-        """
-        Extracts the value of starting at l0 and following pi
-
-        Args:
-            v (np.ndarray): Value table
-
-        Returns:
-            float: Value of starting at l0 and following pi
-        """        
-        return v[0, self.env.l_initial + self.env.waterinflows[0]]
     

@@ -25,7 +25,9 @@ class DQNAgent():
             gamma : float,
             init_eps : float,
             final_eps : float,
-            eps_decay_rate : float
+            eps_decay_rate : float,
+            learning_decay_rate : float,
+            final_learning_rate : float
             ) -> None:
         """
         Initlizes the agent with quality network.
@@ -45,6 +47,7 @@ class DQNAgent():
         """        
         self.dqn = DQN(input_dim, output_dim, nb_hidden, hidden_size)
         self.target_dqn = DQN(input_dim, output_dim, nb_hidden, hidden_size)
+        self.target_dqn.load_state_dict(self.dqn.state_dict())
         self.replay_buffer = replay_buffer
 
         # We pass self.dqn.parameters() to tell what parameters to update
@@ -56,11 +59,14 @@ class DQNAgent():
         self.final_eps = final_eps
         self.eps = init_eps
         self.eps_decay_rate = eps_decay_rate
+        self.learning_rate = learning_rate
+        self.learning_rate_decay = learning_decay_rate
+        self.final_learning_rate = final_learning_rate
 
         self.exploration_episodes = 0
         self.exploitation_episodes = 0
 
-    def choose_action(self, state : tuple[int, int, int]) -> int:
+    def choose_action(self, state : tuple[int, int, int]) -> tuple[int, bool]:
         """
         Chooses which action the agent will take following an epsilon-greedy policy by propagating forward 
         in the quality network.
@@ -80,15 +86,17 @@ class DQNAgent():
             # Q_value is a tensor representing the value of each possible action 
             q_value = self.dqn.forward(state)
             q_value = q_value[0, min_valid_action_space : max_valid_action_space]
+            if q_value.numel() == 0:
+                return 0
             # Action will be the index of the maximal q value
             # print(f'min: {min_valid_action_space}, max: {max_valid_action_space}')
-            action = q_value.argmax().item()
+            action = q_value.argmax().item() + min_valid_action_space
 
         # Exploration
         else:
             self.exploration_episodes += 1
-            action = random.randrange(max_valid_action_space)
-        return action
+            action = random.randrange(min_valid_action_space, max_valid_action_space)
+        return action, False
     
     def update(self, batch_size : int) -> None:
 
@@ -131,6 +139,12 @@ class DQNAgent():
         Computes the decay of epsilon.
         """        
         self.eps = max(self.eps * self.eps_decay_rate, self.final_eps)
+    
+    def alpha_decay(self) -> None:
+        """
+        Computes the decay of epsilon.
+        """        
+        self.learning_rate = max(self.learning_rate * self.learning_rate_decay, self.final_learning_rate)
 
     def update_target_network(self):
         """

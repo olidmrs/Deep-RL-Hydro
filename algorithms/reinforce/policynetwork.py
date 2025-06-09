@@ -1,10 +1,7 @@
-import torch
 import torch.nn as nn
-import random
-random.seed(1)
-torch.manual_seed(1)
+import torch
 
-class DQN(nn.Module):
+class PolicyNetwork(nn.Module):
     def __init__(
             self,
             input_dim : int,
@@ -53,11 +50,10 @@ class DQN(nn.Module):
             if layer != len(self.layers) - 1:
                 state = torch.relu(layer(state))
             else:
-                state = layer(state)
+                state = nn.functional.softmax(layer(state), dim = 1)
         return state
     
     def act(self, q_values : torch.Tensor):
         return q_values.argmax().item()
         
-    
-    
+        
