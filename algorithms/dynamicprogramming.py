@@ -34,9 +34,6 @@ class DynamicProgramming():
                         reward, _ = self.env.get_current_reward(t, l, a)
                         Q_table.append(reward + v[t + 1, next_l])
                         actions.append(a)
-                        # if self.env.l_min <= next_l  <= self.env.l_max:
-                        #     Q_table.append(self.env.reward(t, l, a) + v[t + 1, next_l])
-                        #     actions.append(a)
                     if Q_table:
                         v[t,l] = np.max(Q_table)
                         pi[t,l] = actions[np.argmax(Q_table)]
@@ -60,13 +57,11 @@ class DynamicProgramming():
         total_reward = 0
         for t in range(self.env.t + 1):
             if t != self.env.t:
-                print(t)
                 action = int(pi[t, l])
                 optimal_pi.append(action)
                 reward, _ = self.env.get_current_reward(t, l, action)
                 l = l + self.env.deterministic_inflows[t] - action
                 total_reward += reward
-                print(reward)
                 waterlevel.append(l)
             else:
                 reward, _ = self.env.get_current_reward(t,l,0)

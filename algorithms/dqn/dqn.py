@@ -56,8 +56,12 @@ class DQN(nn.Module):
                 state = layer(state)
         return state
     
-    def act(self, q_values : torch.Tensor):
-        return q_values.argmax().item()
+    def act(self, q_values : torch.Tensor, min_valid_action_space, max_valid_action_space):
+        q_values = q_values[min_valid_action_space : max_valid_action_space]
+        if q_values.numel() == 0:
+            return 0
+        else:
+            return q_values.argmax().item() + min_valid_action_space
         
     
     

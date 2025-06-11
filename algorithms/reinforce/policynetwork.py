@@ -45,15 +45,22 @@ class PolicyNetwork(nn.Module):
         Returns:
             torch.Tensor: q_values associated to all possible actions
         """        
-        for layer in range(len(self.layers)):
-            layer = self.layers[layer]
-            if layer != len(self.layers) - 1:
+        for i in range(len(self.layers)):
+            layer = self.layers[i]
+            if i != len(self.layers) - 1:
                 state = torch.relu(layer(state))
             else:
-                state = nn.functional.softmax(layer(state), dim = 1)
+                state = layer(state)
         return state
     
-    def act(self, q_values : torch.Tensor):
-        return q_values.argmax().item()
+    def act(self, logits : torch.Tensor, min_valid_action_space, max_valid_action_space):
+        mask = torch.zeros_like(logits)
+        mask[min_valid_action_space : max_valid_action_space] = 1
+        logits[mask == 0] = -1e9
+            
+        probs = torch.softmax(logits, dim=-1)
+        dist = torch.distributions.Categorical(probs = probs)
+        action = dist.sample().item()
+        return action
         
         

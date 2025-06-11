@@ -130,8 +130,6 @@ class Qlearning():
             if len(deterministic_inflows) == 0:
                 if t != self.env.t:
                     inflows.append(self.env.get_inflow(t))
-                    print(t)
-                    print(l)
                     a = np.argmax(self.Q_table[t, l, self.env.inflow_cache[t], :])
                     pi.append(a)
                     reward, _ = self.env.get_current_reward(t, l, a)

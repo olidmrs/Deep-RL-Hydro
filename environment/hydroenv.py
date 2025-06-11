@@ -94,7 +94,6 @@ class HydroEnv(gym.Env):
         self.current_t = 0
         self.inflow_cache = []
         self.state = (np.random.randint(0, self.l_max), self.get_inflow(self.current_t), self.current_t)
-        print(self.state)
 
     def get_current_reward(self, t : int, next_waterlevel : int, action : int) -> tuple[float, int]:
         """
@@ -150,3 +149,34 @@ class HydroEnv(gym.Env):
         a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
         a_max = waterlevel + deterministic_inflow - self.l_min
         return range(a_min, a_max + 1)
+    
+class ContinuousHydroEnv(HydroEnv):
+    def __init__(
+        self,
+        t : int,
+        l_max : float,
+        l_min : float,
+        punition : int,
+        deterministic_inflows : list = []
+        ) -> None:
+        """
+        Initialize observation space and action space
+
+        Args:
+            t (int): number of periods where terminal period requires no decison/action
+            l_max (int): maximum reservoir water level
+            l_min (int): minimum reservoir water level
+            state (int): state at which we start and initialize the system
+            punition (int) : punition for constraint breaking
+        """
+        self.t = t
+        self.l_max = l_max
+        self.l_min = l_min
+        self.punition = punition
+        self.deterministic_inflows = deterministic_inflows
+        self.observation_space = gym.spaces.MultiDiscrete(np.array([l_max + 1, l_max + 1, t + 1]))
+        self.action_space = gym.spaces.Discrete(l_max + 1)
+        self.state = 0
+        self.last_i = 0
+        self.current_t = 0
+        self.inflow_cache = []
