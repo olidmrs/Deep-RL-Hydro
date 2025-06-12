@@ -1,5 +1,7 @@
-from .reinforceagent import ReinforceAgent
+from .reinforceagentdiscrete import ReinforceAgentDiscrete
+from .reinforceagentcontinuous import ReinforceAgentContinuous
 from .policynetwork import PolicyNetwork
 
-assert ReinforceAgent
+assert ReinforceAgentContinuous
+assert ReinforceAgentDiscrete
 assert PolicyNetwork

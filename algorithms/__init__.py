@@ -1,9 +1,9 @@
 from .dqn import DQN, DQNAgent, ReplayBuffer
 from .qlearning import Qlearning
 from .dynamicprogramming import DynamicProgramming
-from .reinforce import PolicyNetwork, ReinforceAgent
+from .reinforce import PolicyNetwork, ReinforceAgentDiscrete
 
-assert ReinforceAgent
+assert ReinforceAgentDiscrete
 assert PolicyNetwork
 assert DQN
 assert DQNAgent

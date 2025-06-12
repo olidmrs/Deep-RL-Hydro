@@ -6,7 +6,7 @@ import torch.optim as optim
 from .policynetwork import PolicyNetwork
 from environment import HydroEnv
 
-class ReinforceAgent():
+class ReinforceAgentDiscrete():
     def __init__(
             self,
             input_dim : int,
@@ -22,7 +22,7 @@ class ReinforceAgent():
             beta_decay_rate : float
             ) -> None:
         
-        self.policynetwork = PolicyNetwork(input_dim, output_dim, nb_hidden, hidden_size)
+        self.policynetwork = PolicyNetwork.Discret(input_dim, output_dim, nb_hidden, hidden_size)
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.optimizer = optim.Adam(self.policynetwork.parameters(), lr = learning_rate)
@@ -35,7 +35,7 @@ class ReinforceAgent():
     
     def gather_an_episode(self) -> tuple[list,list,list]:
         self.env.reset()
-        state = torch.tensor(self.env.state, dtype=torch.float )
+        state = torch.tensor(self.env.state, dtype=torch.float)
         done = False
         actions, states, rewards = [], [], []
 
@@ -75,10 +75,11 @@ class ReinforceAgent():
         for states, actions, rewards in zip(states_batch, actions_batch, discounted_rewards_batch):
             for state, action, g in zip(states, actions, rewards):
                 logits = self.policynetwork.forward(state)
-                min_valid_action_space = max(0, self.env.state[0] + self.env.state[1] - self.env.l_max)
-                max_valid_action_space = min(self.env.state[0] + self.env.state[1], self.env.l_max) + 1
+                min_valid_action_space = max(0, state[0].item() + state[1].item() - self.env.l_max)
+                max_valid_action_space = min(state[0].item() + state[1].item(), self.env.l_max) + 1
                 mask = torch.zeros_like(logits)
-                mask[min_valid_action_space : max_valid_action_space] = 1
+                mask[int(min_valid_action_space) : int(max_valid_action_space)] = 1
+
                 logits[mask == 0] = -1e9
                 probs = torch.softmax(logits, dim=-1)
                 dist = torch.distributions.Categorical(probs = probs)
