@@ -85,7 +85,6 @@ class ReinforceAgentDiscrete():
                 dist = torch.distributions.Categorical(probs = probs)
                 log_prob = dist.log_prob(action)
                 loss += -log_prob * (g - b) 
-                # -  self.beta * dist.entropy().mean()
 
         self.optimizer.zero_grad()
         loss.backward()

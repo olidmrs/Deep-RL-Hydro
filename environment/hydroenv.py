@@ -220,7 +220,7 @@ class HydroEnv(gym.Env):
             """        
             self.current_t = 0
             self.inflow_cache = []
-            self.state = (np.random.uniform(0, self.l_max + 1), self.get_inflow(self.current_t), self.current_t)
+            self.state = (np.random.uniform(0, self.l_max), self.get_inflow(self.current_t), self.current_t)
 
         def get_current_reward(self, t : int, next_waterlevel : int, action : int) -> tuple[float, int]:
             """

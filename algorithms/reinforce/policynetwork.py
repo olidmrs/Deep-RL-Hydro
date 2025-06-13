@@ -60,10 +60,8 @@ class PolicyNetwork(nn.Module):
             mask = torch.zeros_like(logits)
             mask[min_valid_action_space : max_valid_action_space] = 1
             logits[mask == 0] = -1e9
-                
             probs = torch.softmax(logits, dim=-1)
-            dist = torch.distributions.Categorical(probs = probs)
-            action = dist.sample().item()
+            action = probs.argmax().item()
             return action
 
     class Continuous(nn.Module):
@@ -121,6 +119,8 @@ class PolicyNetwork(nn.Module):
         
         def act(self, logits : torch.Tensor, min_valid_action_space, max_valid_action_space):
             dist = torch.distributions.Normal(logits[0], logits[1])
-            action = dist.sample()
-            return min_valid_action_space + torch.sigmoid(action).item() * (max_valid_action_space - min_valid_action_space)
+            action = dist.mode
+            sigmoid_action = torch.sigmoid(action).item()
+            print(f'Sigmoid_action: {sigmoid_action}')
+            return min_valid_action_space + sigmoid_action * (max_valid_action_space - min_valid_action_space)
         
