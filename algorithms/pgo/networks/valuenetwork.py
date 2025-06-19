@@ -1,17 +1,16 @@
-import torch
 import torch.nn as nn
-import random
-random.seed(1)
-torch.manual_seed(1)
+import torch
+import numpy as np
 
-class DQN(nn.Module):
+
+class ValueNetwork(nn.Module):
     def __init__(
             self,
             input_dim : int,
             output_dim : int,
             nb_hidden : int,
             hidden_size : int
-            ):
+            ) -> None:
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -22,7 +21,7 @@ class DQN(nn.Module):
 
     def create_layers(self) -> None:
         """
-        Creates hidden layers with dimensions specified in parameters of class
+        Creates layers with dimensions specified in parameters of class
         """
         '''
         input,hidden
@@ -38,7 +37,7 @@ class DQN(nn.Module):
             last_dim = self.hidden_size
 
 
-    def forward(self, state : tuple[int, int, int]) -> torch.Tensor:
+    def forward(self, state : tuple[float, float, int, float]) -> torch.Tensor:
         """
         Forward propagation through the neural network
 
@@ -48,20 +47,12 @@ class DQN(nn.Module):
         Returns:
             torch.Tensor: q_values associated to all possible actions
         """        
+        
         for i in range(len(self.layers)):
             layer = self.layers[i]
             if i != len(self.layers) - 1:
                 state = torch.relu(layer(state))
             else:
-                state = layer(state)
+                state = torch.relu(layer(state))
         return state
-    
-    def act(self, q_values : torch.Tensor, min_valid_action_space, max_valid_action_space):
-        q_values = q_values[min_valid_action_space : max_valid_action_space]
-        if q_values.numel() == 0:
-            return 0
-        else:
-            return q_values.argmax().item() + min_valid_action_space
-        
-    
     

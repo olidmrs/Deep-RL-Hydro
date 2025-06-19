@@ -1,7 +1,7 @@
 from .dqn import DQN, DQNAgent, ReplayBuffer
 from .qlearning import Qlearning
 from .dynamicprogramming import DynamicProgramming
-from .reinforce import PolicyNetwork, ReinforceAgentDiscrete
+from .pgo import PolicyNetwork, ReinforceAgentDiscrete
 
 assert ReinforceAgentDiscrete
 assert PolicyNetwork

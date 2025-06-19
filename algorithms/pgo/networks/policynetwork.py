@@ -121,6 +121,5 @@ class PolicyNetwork(nn.Module):
             dist = torch.distributions.Normal(logits[0], logits[1])
             action = dist.mode
             sigmoid_action = torch.sigmoid(action).item()
-            print(f'Sigmoid_action: {sigmoid_action}')
             return min_valid_action_space + sigmoid_action * (max_valid_action_space - min_valid_action_space)
         

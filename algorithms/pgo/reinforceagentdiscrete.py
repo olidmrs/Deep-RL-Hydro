@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from .policynetwork import PolicyNetwork
+from .networks.policynetwork import PolicyNetwork
 from environment import HydroEnv
 
 class ReinforceAgentDiscrete():

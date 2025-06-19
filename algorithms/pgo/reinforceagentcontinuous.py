@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from .policynetwork import PolicyNetwork
+from .networks.policynetwork import PolicyNetwork
 from environment import HydroEnv
 
 
@@ -67,7 +67,6 @@ class ReinforceAgentContinuous():
                 dist = torch.distributions.Normal(output[0], output[1])
                 log_prob = dist.log_prob(action)
                 loss += -log_prob * (g - b)
-
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

@@ -88,8 +88,6 @@ class DQNAgent():
             q_value = q_value[0, min_valid_action_space : max_valid_action_space]
             if q_value.numel() == 0:
                 return 0
-            # Action will be the index of the maximal q value
-            # print(f'min: {min_valid_action_space}, max: {max_valid_action_space}')
             action = q_value.argmax().item() + min_valid_action_space
 
         # Exploration
@@ -128,7 +126,6 @@ class DQNAgent():
         q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1) # Extract Q_values of action taken for each element of batch
         next_q_value = next_q_values.max(1)[0] # Get max value for the next state
         expected_q_value = reward + self.gamma * next_q_value * (1 - done)
-
         loss = self.criterion(q_value, expected_q_value.detach())
         self.optimizer.zero_grad() # Resets gradient
         loss.backward() # Computes gradients of loss with respect to all parameters
