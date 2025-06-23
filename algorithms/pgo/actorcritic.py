@@ -38,20 +38,13 @@ class ActorCritic():
         for state, action, value in zip(states_batch, actions_batch, td_batch):
             output = self.policynetwork(state)
             mean = output[0]
-            std = torch.clamp(output[1], min=1e-2, max=2.0)
+            std = output[1]
             dist = torch.distributions.Normal(mean, std)
-            # print('-')
-            # print(f'dist {dist}')
-            # print(f'Action {action}')
             log_prob = dist.log_prob(action)
-            # print(f'log prob: {log_prob}, output: {output}')
-            # print(f'valeur {value}')
             normalized_value = (value - np.mean(td_batch))/np.std(td_batch)
-            # print(f'normalized value {normalized_value}')
             losses.append(-log_prob * normalized_value)
         
         loss = torch.stack(losses).mean()
-        # print(f'loss: {loss}')
         self.optimizer_policynet.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policynetwork.parameters(), clip_value=1e-11)
@@ -63,19 +56,16 @@ class ActorCritic():
         loss = self.criterion(value_batch[:,0], actual_reward_batch)
         self.optimizer_valuenet.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_value_(self.valuenetwork.parameters(), clip_value=1e-11)
         self.optimizer_valuenet.step()
     
     def sample_action(self, state : torch.Tensor):
         logit = self.policynetwork.forward(state)
         min_valid_action_space = max(0, state[0] + state[1] - self.env.l_max)
         max_valid_action_space = min(state[0] + state[1], self.env.l_max)
-        # print(f'logit: {logit}')
-        # print(f'action range: {min_valid_action_space, max_valid_action_space}')
         dist = torch.distributions.Normal(logit[0], logit[1])
         raw_action = dist.sample()
         action = min_valid_action_space + torch.sigmoid(raw_action).item() * (max_valid_action_space - min_valid_action_space)
-        return action
+        return action, raw_action
 
     def decay_alpha(self):
         self.alpha_policynet = self.alpha_policynet * self.alpha_decay
