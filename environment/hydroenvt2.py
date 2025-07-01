@@ -8,7 +8,7 @@ import random
 random.seed(1)
 np.random.seed(1)
 
-class HydroEnv(gym.Env):
+class HydroEnvt2(gym.Env):
     """
     Observation Space:
     Represents the state at which the agent is now at. It is the information
@@ -76,8 +76,6 @@ class HydroEnv(gym.Env):
             reward, truncated = self.get_current_reward(self.current_t, self.state[0], action)
             inflow = self.state[1]
             next_waterlevel = self.state[0] + inflow - action
-            if self.l_min > next_waterlevel or next_waterlevel > self.l_max:
-                reward = self.punition
 
             # Updates
             self.last_i = inflow
@@ -85,8 +83,6 @@ class HydroEnv(gym.Env):
             
             if self.current_t == self.t - 1 and truncated != 1:
                 terminal_reward, _ = self.get_current_reward(self.current_t + 1, next_waterlevel, 0)
-                if self.l_min > next_waterlevel or next_waterlevel > self.l_max:
-                    terminal_reward = self.punition
                 reward += terminal_reward
                 done = 1
 
@@ -114,7 +110,7 @@ class HydroEnv(gym.Env):
 
             Returns:
                 tuple[float, int]: Returns a tuple of the reward and truncation bool
-            """          
+            """        
             if t == self.t:
                 return np.log((1 + next_waterlevel) ** 2), 0
             else:
@@ -132,11 +128,9 @@ class HydroEnv(gym.Env):
             """        
             match t:
                 case 0:
-                    i = max(10 + 5 * np.random.normal(loc = 0, scale = 1), 0)
+                    i = 20
                 case 1:
-                    i = max(self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
-                case 2:
-                    i = max(2 * self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
+                    i = max(3*self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
                 case _:
                     return 0
             self.inflow_cache.append(np.clip(int(i), self.l_min, self.l_max))
@@ -154,7 +148,7 @@ class HydroEnv(gym.Env):
             a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
             a_max = waterlevel + deterministic_inflow - self.l_min
             return range(a_min, a_max + 1)
-    
+        
     class Continuous():
         def __init__(
             self,
@@ -201,19 +195,15 @@ class HydroEnv(gym.Env):
             reward, truncated = self.get_current_reward(self.current_t, self.state[0], action)
             inflow = self.state[1]
             next_waterlevel = self.state[0] + inflow - action
-            if self.l_min > next_waterlevel or next_waterlevel > self.l_max:
-                reward = self.punition
-                
+
             # Updates
             self.last_i = inflow
             done = 0
             if self.current_t == self.t - 1:
                 terminal_reward, _ = self.get_current_reward(self.current_t + 1, next_waterlevel, 0)
-                if self.l_min > next_waterlevel or next_waterlevel > self.l_max:
-                    reward = self.punition
                 reward += terminal_reward
                 done = 1
-            
+
             self.current_t += 1
 
             self.state = (next_waterlevel, self.get_inflow(self.current_t), self.current_t)
@@ -239,10 +229,13 @@ class HydroEnv(gym.Env):
             Returns:
                 tuple[float, int]: Returns a tuple of the reward and truncation bool
             """
-            if t == self.t:
-                return np.log((1 + next_waterlevel) ** 2), 0
-            else:
-                return np.log((1 + next_waterlevel) * (1 + action)), 0
+            if  next_waterlevel < self.l_min or next_waterlevel > self.l_max:
+                return self.punition, 1
+            else:    
+                if t == self.t:
+                    return np.log((1 + next_waterlevel) ** 2), 0
+                else:
+                    return np.log((1 + next_waterlevel) * (1 + action)), 0
 
         def get_inflow(self, t : int) -> float:
             """
@@ -256,15 +249,14 @@ class HydroEnv(gym.Env):
             """        
             match t:
                 case 0:
-                    i = max(10 + 5 * np.random.normal(loc = 0, scale = 1), 0)
+                    i = 20
                 case 1:
-                    i = max(self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
-                case 2:
-                    i = max(2 * self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
+                    i = max(3*self.inflow_cache[t-1] + 5 * np.random.normal(loc = 0, scale = 1), 0)
                 case _:
                     return 0
             self.inflow_cache.append(np.clip(i, self.l_min, self.l_max))
             return np.clip(i, self.l_min, self.l_max)
+            
         
         def get_actions(self):
             waterlevel = self.state[0]
@@ -278,5 +270,3 @@ class HydroEnv(gym.Env):
             a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
             a_max = waterlevel + deterministic_inflow - self.l_min
             return np.random.uniform(a_min, a_max + 1)
-
-        

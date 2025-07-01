@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from .networks.policynetwork import PolicyNetwork
 from environment import HydroEnv
-
+from algorithms.enums.activationfunctions import ActivationFunctions
 
 
 class ReinforceAgentContinuous():
@@ -18,9 +18,10 @@ class ReinforceAgentContinuous():
             gamma : float, 
             learning_rate : float,
             env : HydroEnv,
+            activationfunction : ActivationFunctions
             ) -> None:
         
-        self.policynetwork = PolicyNetwork.Continuous(input_dim, output_dim, nb_hidden, hidden_size)
+        self.policynetwork = PolicyNetwork.Continuous(input_dim, output_dim, nb_hidden, hidden_size, activationfunction)
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.optimizer = optim.Adam(self.policynetwork.parameters(), lr = learning_rate)

@@ -1,0 +1,3 @@
+from .activationfunctions import ActivationFunctions
+
+assert ActivationFunctions

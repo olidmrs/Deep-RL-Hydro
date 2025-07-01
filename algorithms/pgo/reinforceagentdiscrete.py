@@ -5,6 +5,7 @@ import torch.optim as optim
 
 from .networks.policynetwork import PolicyNetwork
 from environment import HydroEnv
+from algorithms.enums.activationfunctions import ActivationFunctions
 
 class ReinforceAgentDiscrete():
     def __init__(
@@ -19,10 +20,11 @@ class ReinforceAgentDiscrete():
             learning_decay_rate : float,
             final_learning_rate : float,
             beta : float,
-            beta_decay_rate : float
+            decay_beta : float,
+            activationfunction : ActivationFunctions
             ) -> None:
         
-        self.policynetwork = PolicyNetwork.Discret(input_dim, output_dim, nb_hidden, hidden_size)
+        self.policynetwork = PolicyNetwork.Discret(input_dim, output_dim, nb_hidden, hidden_size, activationfunction)
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.optimizer = optim.Adam(self.policynetwork.parameters(), lr = learning_rate)
@@ -31,7 +33,7 @@ class ReinforceAgentDiscrete():
         self.learning_rate_decay = learning_decay_rate
         self.final_learning_rate = final_learning_rate
         self.beta = beta
-        self.beta_decay_rate = beta_decay_rate
+        self.decay_beta = decay_beta
     
     def gather_an_episode(self) -> tuple[list,list,list]:
         self.env.reset()
@@ -49,7 +51,7 @@ class ReinforceAgentDiscrete():
 
             probs = torch.softmax(logits, dim=-1)
             dist = torch.distributions.Categorical(probs=probs)
-            action = dist.sample().item()   
+            action = dist.sample().item()
 
             next_state, reward, done, truncated, info = self.env.step(action)
             actions.append(torch.tensor(action, dtype=torch.int))
@@ -84,7 +86,7 @@ class ReinforceAgentDiscrete():
                 probs = torch.softmax(logits, dim=-1)
                 dist = torch.distributions.Categorical(probs = probs)
                 log_prob = dist.log_prob(action)
-                loss += -log_prob * (g - b) 
+                loss += -log_prob * (g - b) - self.beta * dist.entropy()
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -100,4 +102,4 @@ class ReinforceAgentDiscrete():
         """
         Computes the decay of epsilon.
         """
-        self.beta = self.beta * self.beta_decay_rate
+        self.beta = self.beta * self.decay_beta

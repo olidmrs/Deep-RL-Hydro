@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import numpy as np
+from algorithms.enums.activationfunctions import ActivationFunctions
 
 class PolicyNetwork(nn.Module):
     
@@ -10,13 +11,15 @@ class PolicyNetwork(nn.Module):
                 input_dim : int,
                 output_dim : int,
                 nb_hidden : int,
-                hidden_size : int
+                hidden_size : int,
+                activation : ActivationFunctions
                 ):
             super().__init__()
             self.input_dim = input_dim
             self.output_dim = output_dim
             self.nb_hidden = nb_hidden
             self.hidden_size = hidden_size
+            self.activation = activation
             self.layers = nn.ModuleList()
             self.create_layers()
 
@@ -37,6 +40,15 @@ class PolicyNetwork(nn.Module):
                     self.layers.append(nn.Linear(last_dim, self.hidden_size))
                 last_dim = self.hidden_size
 
+        def activation_function(self, tensor : torch.Tensor) -> torch.Tensor:
+            match self.activation:
+                case ActivationFunctions.LEAKYRELU:
+                    leaky = torch.nn.LeakyReLU(0.1)
+                    return leaky(tensor)
+                case ActivationFunctions.RELU:
+                    return torch.relu(tensor)
+                case ActivationFunctions.TANH:
+                    return torch.tanh(tensor)
 
         def forward(self, state) -> torch.Tensor:
             """
@@ -47,11 +59,12 @@ class PolicyNetwork(nn.Module):
 
             Returns:
                 torch.Tensor: q_values associated to all possible actions
-            """        
+            """
+
             for i in range(len(self.layers)):
                 layer = self.layers[i]
                 if i != len(self.layers) - 1:
-                    state = torch.relu(layer(state))
+                    state = self.activation_function(layer(state))
                 else:
                     state = layer(state)
             return state
@@ -69,7 +82,8 @@ class PolicyNetwork(nn.Module):
                 input_dim : int,
                 output_dim : int,
                 nb_hidden : int,
-                hidden_size : int
+                hidden_size : int,
+                activation : ActivationFunctions
                 ):
             
             super().__init__()
@@ -77,9 +91,20 @@ class PolicyNetwork(nn.Module):
             self.output_dim = output_dim
             self.nb_hidden = nb_hidden
             self.hidden_size = hidden_size
+            self.activation = activation
             self.layers = nn.ModuleList()
             self.create_layers()
 
+        def activation_function(self, tensor : torch.Tensor) -> torch.Tensor:
+            match self.activation:
+                case ActivationFunctions.LEAKYRELU:
+                    leaky = torch.nn.LeakyReLU(0.1)
+                    return leaky(tensor)
+                case ActivationFunctions.RELU:
+                    return torch.relu(tensor)
+                case ActivationFunctions.TANH:
+                    return torch.tanh(tensor)
+                
         def create_layers(self) -> None:
             """
             Creates hidden layers with dimensions specified in parameters of class
@@ -111,7 +136,7 @@ class PolicyNetwork(nn.Module):
             for i in range(len(self.layers)):
                 layer = self.layers[i]
                 if i != len(self.layers) - 1:
-                    state = torch.relu(layer(state))
+                    state = self.activation_function(layer(state))
                 else:
                     state = layer(state)
             state[1] = torch.exp(state[1])
