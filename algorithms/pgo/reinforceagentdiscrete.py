@@ -36,6 +36,7 @@ class ReinforceAgentDiscrete():
         self.decay_beta = decay_beta
     
     def gather_an_episode(self) -> tuple[list,list,list]:
+
         self.env.reset()
         state = torch.tensor(self.env.state, dtype=torch.float)
         done = False
@@ -71,10 +72,11 @@ class ReinforceAgentDiscrete():
         return discounted_returns 
     
     def update(self, states_batch, actions_batch, discounted_rewards_batch):
-        loss = 0
+        losses = []
         all_returns = np.concatenate(discounted_rewards_batch)
         b = np.mean(all_returns)
         for states, actions, rewards in zip(states_batch, actions_batch, discounted_rewards_batch):
+            loss = 0
             for state, action, g in zip(states, actions, rewards):
                 logits = self.policynetwork.forward(state)
                 min_valid_action_space = max(0, state[0].item() + state[1].item() - self.env.l_max)
@@ -86,8 +88,10 @@ class ReinforceAgentDiscrete():
                 probs = torch.softmax(logits, dim=-1)
                 dist = torch.distributions.Categorical(probs = probs)
                 log_prob = dist.log_prob(action)
-                loss += -log_prob * (g - b) - self.beta * dist.entropy()
-
+                #  - self.beta * dist.entropy()
+                losses.append(-log_prob * (g - b))
+                
+        loss = torch.stack(losses).mean()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

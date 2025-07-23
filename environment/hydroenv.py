@@ -12,14 +12,14 @@ class HydroEnv(gym.Env):
     """
     Observation Space:
     Represents the state at which the agent is now at. It is the information
-    required by the agent to take a decision. It is the input layer of our Neural Network.
+    required by the agent to take a decision.
     Observation space = [Lt, It, t]
     Where Lt is the water level at current period.
     Where It is the inflow of water incoming during period t.
     Where t is the period at which the agent is currently at
 
     Action Space:
-    Represents all the set of possible actions.
+    Represents all the set of actions. This set of actions does not imply that all actions are valid at that state
 
     Reward:
     Reward is computed based on the amount of turbined water and water level for non terminal periods. Terminal
@@ -27,7 +27,7 @@ class HydroEnv(gym.Env):
     is associated leading to truncation of the episode.
 
     Termination:
-    Termination is reaches all periods t are done or once an episode is truncated from constraint violation.
+    Termination is reached when we reach T or once an episode is truncated from constraint violation.
     """    
 
     class Discret():
@@ -40,7 +40,7 @@ class HydroEnv(gym.Env):
                 deterministic_inflows : list = []
                 ) -> None:
             """
-            Initialize observation space and action space
+            Initialize observation space and action space in a discrete state and action space
 
             Args:
                 t (int): number of periods where terminal period requires no decison/action
@@ -48,6 +48,7 @@ class HydroEnv(gym.Env):
                 l_min (int): minimum reservoir water level
                 state (int): state at which we start and initialize the system
                 punition (int) : punition for constraint breaking
+                deterministic_inflows (list) : trajectory with deterministic inflows
             """
             self.t = t
             self.l_max = l_max
@@ -71,7 +72,7 @@ class HydroEnv(gym.Env):
             Returns:
                 tuple[int, float, bool, bool, dict]: Returns a tuple of the next state, the reward associated with 
                 the transition, a bool of if the step led to termination, a bool of if the step led to truncation,
-                and an information dictionnary (not implemented here).
+                and an informationa dictionnary (not implemented here).
             """        
             reward, truncated = self.get_current_reward(self.current_t, self.state[0], action)
             inflow = self.state[1]
@@ -83,6 +84,7 @@ class HydroEnv(gym.Env):
             self.last_i = inflow
             done = 0
             
+            # Add terminal waterlevel reward when last action is taken
             if self.current_t == self.t - 1 and truncated != 1:
                 terminal_reward, _ = self.get_current_reward(self.current_t + 1, next_waterlevel, 0)
                 if self.l_min > next_waterlevel or next_waterlevel > self.l_max:
@@ -92,12 +94,13 @@ class HydroEnv(gym.Env):
 
             self.current_t += 1
 
+            # Update s to s'
             self.state = (next_waterlevel, self.get_inflow(self.current_t), self.current_t)
             return self.state, reward, done, truncated, {}
 
         def reset(self) -> None:
             """
-            Resets the environment for it to be ready for a new epsideo
+            Resets the environment for it to be ready for a new episode
             """        
             self.current_t = 0
             self.inflow_cache = []
@@ -142,7 +145,13 @@ class HydroEnv(gym.Env):
             self.inflow_cache.append(np.clip(int(i), self.l_min, self.l_max))
             return np.clip(int(i), self.l_min, self.l_max)
         
-        def get_actions(self):
+        def get_actions(self) -> range:
+            """
+            Based on current state, this method computes the valid set of actions
+
+            Returns:
+                actions (range): range of valid discrete actions
+            """            
             waterlevel = self.state[0]
             inflow = self.state[1]
 
@@ -151,6 +160,16 @@ class HydroEnv(gym.Env):
             return range(a_min, a_max + 1)
         
         def get_deterministic_actions(self, waterlevel : int, deterministic_inflow : int):
+            """
+            Based on current state and deterministic inflow, this method computes the valid set of actions
+
+            Args:
+                waterlevel (int): waterlevel at time t
+                deterministic_inflow (int): inflow at time t
+
+            Returns:
+                actions (range): range of valid discrete actions
+            """            
             a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
             a_max = waterlevel + deterministic_inflow - self.l_min
             return range(a_min, a_max + 1)
@@ -165,7 +184,7 @@ class HydroEnv(gym.Env):
             deterministic_inflows : list = []
             ) -> None:
             """
-            Initialize observation space and action space
+            Initialize observation space and action space for a continuous action and state space
 
             Args:
                 t (int): number of periods where terminal period requires no decison/action
@@ -173,6 +192,7 @@ class HydroEnv(gym.Env):
                 l_min (int): minimum reservoir water level
                 state (int): state at which we start and initialize the system
                 punition (int) : punition for constraint breaking
+                deterministic_inflows (list) : trajectory with deterministic inflows
             """
             self.t = t
             self.l_max = l_max
@@ -198,6 +218,7 @@ class HydroEnv(gym.Env):
                 the transition, a bool of if the step led to termination, a bool of if the step led to truncation,
                 and an information dictionnary (not implemented here).
             """        
+            # print(f'state: {self.state[0]}, action {action}')
             reward, truncated = self.get_current_reward(self.current_t, self.state[0], action)
             inflow = self.state[1]
             next_waterlevel = self.state[0] + inflow - action
@@ -266,7 +287,13 @@ class HydroEnv(gym.Env):
             self.inflow_cache.append(np.clip(i, self.l_min, self.l_max))
             return np.clip(i, self.l_min, self.l_max)
         
-        def get_actions(self):
+        def get_actions(self) -> float:
+            """
+            Based on current state, this method samples a random action from the valid set of actions
+
+            Returns:
+                action (float): random action
+            """            
             waterlevel = self.state[0]
             inflow = self.state[1]
 
@@ -275,6 +302,17 @@ class HydroEnv(gym.Env):
             return np.random.uniform(a_min, a_max + 1)
         
         def get_deterministic_actions(self, waterlevel : float, deterministic_inflow : float):
+            """
+            Based on current state and deterministic inflows, this method samples a random action from the
+            valid set of actions
+
+            Args:
+                waterlevel (int): waterlevel at time t
+                deterministic_inflow (int): inflow at time t
+
+            Returns:
+                action (float): random action
+            """            
             a_min = max(waterlevel + deterministic_inflow - self.l_max, 0)
             a_max = waterlevel + deterministic_inflow - self.l_min
             return np.random.uniform(a_min, a_max + 1)

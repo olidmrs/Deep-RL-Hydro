@@ -14,11 +14,10 @@ class DynamicProgramming():
             Value table (np.ndarray): table of value of starting in each state at each time
             Policy table (np.ndarray): table of best action to take in each state at each time
         """
-        # max(self.env.deterministic_inflows)
+
         v = np.zeros([self.env.t + 1, self.env.l_max + 1])
         pi = np.zeros([self.env.t + 1, self.env.l_max + 1])
         
-
         for t in range(self.env.t, -1, -1):
             if t == self.env.t:
                 for l in range(self.env.l_max + 1):

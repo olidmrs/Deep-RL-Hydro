@@ -43,7 +43,7 @@ class ReinforceAgentContinuous():
             action = min_valid_action_space + torch.sigmoid(raw_action).item() * (max_valid_action_space - min_valid_action_space)
 
             next_state, reward, done, truncated, info = self.env.step(action)
-            actions.append(torch.tensor(raw_action, dtype=torch.float))
+            actions.append(raw_action)
             states.append(state)
             rewards.append(reward)
             state = torch.tensor(next_state, dtype=torch.float)
@@ -59,7 +59,7 @@ class ReinforceAgentContinuous():
         return discounted_returns 
     
     def update(self, states_batch, actions_batch, discounted_rewards_batch):
-        loss = 0
+        losses = []
         all_returns = np.concatenate(discounted_rewards_batch)
         b = np.mean(all_returns)
         for states, actions, rewards in zip(states_batch, actions_batch, discounted_rewards_batch):
@@ -67,7 +67,10 @@ class ReinforceAgentContinuous():
                 output = self.policynetwork.forward(state)
                 dist = torch.distributions.Normal(output[0], output[1])
                 log_prob = dist.log_prob(action)
-                loss += -log_prob * (g - b)
+                losses.append(-log_prob * (g - b))
+
+        loss = torch.stack(losses).mean()
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policynetwork.parameters(), max_norm = 0.5)
         self.optimizer.step()

@@ -39,34 +39,33 @@ class PPO():
             output = self.policynetwork(state)
             mean = output[0]
             std = output[1]
-            # print('__________')
-            # print(f'mean: {mean}, std: {std}')
-
             dist = torch.distributions.Normal(mean, std)
-            # old_dist = torch.distributions.Normal(last_logits[0], last_logits[1])
-            # print(f'dist: {dist}')
-            # print(f'old dist: {old_dist}')
             log_prob = dist.log_prob(action)
-            # last_logprob = old_dist.log_prob(action)
-
-            # print(f'log prob{log_prob}')
-            # print(f'last log prob{last_logprob}')
-
-
             ratio = torch.exp(log_prob - last_logprob)
             clipped_ratio = torch.clamp(ratio, 1 - self.eps, 1 + self.eps)
-            normalized_advantage = (advantage - np.mean(td_batch))/np.std(td_batch)
-
-            # print(clipped_ratio, ratio)
-            # print(normalized_advantage)
-            loss = -torch.min(ratio * normalized_advantage, clipped_ratio * normalized_advantage)
-            # print(loss)
+            loss = -torch.min(ratio * advantage, clipped_ratio * advantage)
             losses.append(loss)
-        
+
+        # states      = torch.stack(states_batch)
+        # actions     = torch.stack(actions_batch)
+        # old_logprob = torch.stack(logprob_batch)
+        # advantages  = torch.tensor(td_batch, dtype=torch.float32)
+
+        # output = self.policynetwork(states)
+        # mean = output[:,0]
+        # std = output[:,1]
+        # print(std)
+        # dist = torch.distributions.Normal(mean, std)
+
+        # new_logprob = dist.log_prob(actions)
+
+        # ratios = (new_logprob - old_logprob).exp()
+        # clipped = torch.clamp(ratios, 1 - self.eps, 1 + self.eps)
+        # loss = -torch.min(ratios * advantages.unsqueeze(-1), clipped * advantages.unsqueeze(-1)).mean()
+
         loss = torch.stack(losses).mean()
         self.optimizer_policynet.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_value_(self.policynetwork.parameters(), clip_value=1e-10)
         self.optimizer_policynet.step()
         
     def update_valuenet(self, actual_reward_batch, value_batch) -> None:

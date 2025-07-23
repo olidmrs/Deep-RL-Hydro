@@ -93,12 +93,6 @@ class Qlearning():
                 
                 # Q table update
                 self.Q_table[t, s, waterinflow, a] = self.Q_table[t, s, waterinflow, a] + self.learning_rate * TD_error
-
-                # Terminal Q value based on water level
-                # if done:
-                #     terminal_reward, _ = self.env.get_current_reward(t + 1, next_state[0], 0)
-                #     self.Q_table[t + 1, next_state[0], next_state[1], a] = self.Q_table[t + 1, next_state[0], next_state[1], a] + self.learning_rate * (terminal_reward - self.Q_table[t + 1, next_state[0], next_state[1], a])
-                #     episode_reward += terminal_reward
                 
                 self.visit_counts[t, s, waterinflow, a] = 1
             
@@ -112,13 +106,15 @@ class Qlearning():
         
         return epsilon_history, reward_history
 
-    def extract_policy(self, initial_waterlevel : int, deterministic_inflows : list = []) -> tuple[list, list]:
+    def extract_policy(self, initial_waterlevel : int, deterministic_inflows : list = []) -> tuple[list, list, list, float]:
         """
         Extracts optimal policy propagating through our system starting at initial state 
 
         Returns:
             pi (list): optimal actions to take at each time step starting at initial state
             waterlevel (list): waterlevel at each period when stating at initial state and following optimal policy
+            inflows (list) : inflows of water used during simulation
+            total_reward (float) : reward of trajectory
         """
         inflows = []
         l = initial_waterlevel
@@ -126,7 +122,8 @@ class Qlearning():
         waterlevel = [l]
         total_reward = 0
         for t in range(self.env.t + 1):
-
+            
+            # For scenario of stochastic inflows
             if len(deterministic_inflows) == 0:
                 if t != self.env.t:
                     inflows.append(self.env.get_inflow(t))
@@ -140,6 +137,7 @@ class Qlearning():
                     reward, _ = self.env.get_current_reward(t,l,0)
                     total_reward += reward
 
+            # For scenario deterministic case
             else:
                 if t != self.env.t:
                     inflows = deterministic_inflows
@@ -154,32 +152,6 @@ class Qlearning():
                     total_reward += reward
         self.env.reset()
         return pi, waterlevel, inflows, total_reward
-    
-    def save_model(self, filename : str) -> None:
-        """
-        Saves object of class to models folder
-
-        Args:
-            filename (str): filename with .pkl extension 
-        """        
-        os.makedirs('models', exist_ok= True)
-        filepath = os.path.join('models', filename)
-        with open(filepath, 'wb') as f:
-            pickle.dump(self, f)
-    
-    @staticmethod
-    def load_model(filepath: str) -> 'Qlearning':
-        """
-        Loads object of class to retrieve model
-
-        Args:
-            filepath (str): filepath of folder where model is saved
-
-        Returns:
-            model (Qlearning): object of class Qlearning
-        """        
-        with open(filepath, 'rb') as f:
-            return pickle.load(f)
         
     def extract_reward_of_pi(self, waterlevel : list, pi: list) -> float:
         reward = 0
